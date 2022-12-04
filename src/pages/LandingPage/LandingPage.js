@@ -1,16 +1,49 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useSignInWithGoogle } from "react-firebase-hooks/auth";
 import { FaGoogle } from "react-icons/fa";
 import { useLocation, useNavigate } from "react-router-dom";
-import auth from "../../firebase_init";
+import { auth } from "../../firebase_init";
 import DotLoader from "react-spinners/DotLoader";
 const LandingPage = () => {
   const [signInWithGoogle, user, loading, error] = useSignInWithGoogle(auth);
+  const [users, setUsers] = useState([]);
   let errorElement;
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/dashboard";
+  const from = location.state?.from?.pathname || "/profile";
+  const createUser = () => {
+    const match = users.find((element) => element.email === user?.user?.email);
+    const data = {
+      name: "",
+      email: user.user.email,
+      time: "10:200",
+      imgLink: "",
+      chats: [],
+      groups: [],
+    };
+    // console.log(data);
+    if (!match) {
+      fetch("http://localhost:5002/users", {
+        method: "POST", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success:", data);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    } else {
+      return;
+    }
+  };
   if (user) {
+    createUser();
+    // console.log("user", user.user.email);
     navigate(from, { replace: true });
   }
   if (error) {
@@ -23,6 +56,11 @@ const LandingPage = () => {
   const handleSocialLogin = () => {
     signInWithGoogle();
   };
+  useEffect(() => {
+    fetch("http://localhost:5002/users")
+      .then((res) => res.json())
+      .then((data) => setUsers(data));
+  }, []);
   return (
     <div>
       {loading ? (

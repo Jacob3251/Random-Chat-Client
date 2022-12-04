@@ -5,6 +5,7 @@ import { initializeApp } from "firebase/app";
 
 // Your web app's Firebase configuration
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 const firebaseConfig = {
   apiKey: "AIzaSyBl6me69EY-QkcPSOmqrz17ZNc7MzOywTo",
   authDomain: "random-chatter-client.firebaseapp.com",
@@ -18,5 +19,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
-
-export default auth;
+const storage = getStorage(app);
+export { auth, storage };

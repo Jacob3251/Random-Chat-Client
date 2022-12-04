@@ -1,92 +1,249 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import ChatBodyInfo from "../ChatBodyInfo/ChatBodyInfo";
 import { FaEllipsisV } from "react-icons/fa";
 import { userData, fakeChatData } from "../../Util/data";
 import ChatMessage from "./ChatMessage";
-import auth from "../../../firebase_init";
+import { auth } from "../../../firebase_init";
 import { useAuthState } from "react-firebase-hooks/auth";
+import useChatLoad from "../../Util/useChatLoad";
+import useLoadSession from "../../Util/useLoadSession";
+import moment from "moment";
+import { v4 } from "uuid";
+import ABC from "../../Util/userContext";
+import { json } from "react-router-dom";
+import ChatMsgBody from "./ChatMsgBody";
 const ChatBody = () => {
   const [showChatBody, setShowChatBody] = useState(false);
-  const [chatData, setChatData] = useState(fakeChatData);
+  const { value } = useContext(ABC);
+  // const [contextEmail, setContextEmail] = useState("");
+
+  // useStates for preSent msg'es
+  // const [load, setLoad] = useState(false);
+  // const [chatMsgId, setChatMsgId] = useState("");
+  // const handleLoad = () => {
+  //   setLoad(false);
+  // };
   const [user] = useAuthState(auth);
-
-  const handleNewMsg = (e) => {
-    e.preventDefault();
-    const message = e.target.msg.value;
-    const newChatObj = {
-      msgId: chatData.length + 1,
-      sender: user?.email,
-      content: message,
-      files: "",
-      time: "11/23/2022",
-    };
-    setChatData([...chatData, newChatObj]);
-
-    // console.log(chatData);
-    e.target.reset();
-  };
+  // handling input
+  const [chatRoomIdObj, setChatRoomIdObj] = useState({});
+  const [chatRoomIdSpecific, setChatRoomIdSpecific] = useState("");
+  // handling users profile link
+  const [userProfile, setUserProfile] = useState({});
   const handleAutoScroll = () => {
-    var elem = document.getElementById("scrollDown");
+    const elem = document.getElementById("scrollDown");
     elem.scrollIntoView();
   };
+
+  function findChatRoomId(email1, email2) {
+    // console.log("Value Email", value.email);
+    // console.log("Context Email", contextEmail);
+
+    const participents = [email1, email2];
+    const email = participents[0] + "*" + participents[1];
+    console.log(email);
+
+    const preUrl = `http://localhost:5002/prechatcollection/${email}`;
+    fetch(preUrl)
+      .then((res) => res.json())
+      .then((data) => {
+        setChatRoomIdObj(data);
+        setChatRoomIdSpecific(data.id);
+      })
+      .catch((error) => {
+        console.error("Error: ", error);
+      });
+  }
+  const handleFirstNewMsg = (e) => {
+    e.preventDefault();
+
+    // alert(chatRoomIdSpecific);
+    const contentMsg = e.target.msg.value;
+
+    if (chatRoomIdSpecific === null) {
+      alert("no id");
+      const newChatRoomID = v4();
+      alert("New Chatroom iD", newChatRoomID);
+      // console.log("inside empty chatroomID", chatRoomId.id);
+      // creating collections containing messages with uuid name
+      const url3 = `http://localhost:5002/userchatscollection`;
+      const time = moment().format("lll");
+      const url3BodyObj = {
+        chatRoomID: newChatRoomID,
+        sender: user.email,
+        receiver: value.email,
+        msg: contentMsg,
+        time: time,
+      };
+      fetch(url3, {
+        method: "POST", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(url3BodyObj),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success creating collections:", data);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+      // creating ChatRooms info Collections
+      const url2 = `http://localhost:5002/userchatcollection`;
+      const url2BodyObj = {
+        chatRoomID: newChatRoomID,
+        members: [user.email, value.email],
+      };
+      fetch(url2, {
+        method: "POST", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(url2BodyObj),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success: chatroom info", data);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+      // ********************** do this part last
+      const url1 = `http://localhost:5002/userchat`;
+      // updating both profile chat array
+      const url1BodyObj = {
+        user1: user.email,
+        user2: value.email,
+        chatRoomID: newChatRoomID,
+      };
+      fetch(url1, {
+        method: "PUT", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(url1BodyObj),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success:", data);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+      window.location.reload();
+    } else {
+      // alert(chatRoomIdSpecific);
+      alert("Old chatroom id", chatRoomIdSpecific);
+      const url3 = `http://localhost:5002/usermsgchatscollection`;
+      const time = moment().format("lll");
+      const url3BodyObj = {
+        chatRoomID: chatRoomIdSpecific,
+        sender: user.email,
+        receiver: value.email,
+        msg: contentMsg,
+        time: time,
+      };
+      fetch(url3, {
+        method: "POST", // or 'PUT'
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(url3BodyObj),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Success updating the remaining msg db:", data);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+        });
+    }
+
+    e.target.reset();
+  };
   useEffect(() => {
-    setTimeout(handleAutoScroll(), 1000);
-  }, [chatData]);
+    if (value.email != undefined) {
+      const e1 = user?.email;
+      const e2 = value.email;
+      console.log("user email", e1, "value email", e2);
+      findChatRoomId(e1, e2);
+      // console.log(chatRoomIdSpecific);
+    }
+    const profileUrl = `http://localhost:5002/user/${user?.email}`;
+    fetch(profileUrl)
+      .then((res) => res.json())
+      .then((data) => setUserProfile(data));
+
+    // console.log("useEffect ran outside condition");
+  }, [value.email]);
+
   return (
-    <div className={` ${showChatBody ? "w-[68%]  flex" : "w-[68%] "}`}>
-      <div className=" w-[100%] h-full pb-1 border-r-2 border-gray-200">
-        {/* <div className="flex justify-center items-center h-screen">
-          <h3 className="text-xl font-medium text-gray-800">
-            No Selected Chats
-          </h3>
-        </div> */}
-        {/* chat title part */}
-        <div className="flex justify-between items-center border-b-2 mr-1  border-slate-200">
-          <div className="flex items-center">
-            <div className="h-[50px] w-[50px] rounded-full m-2">
+    <div className="w-full ">
+      {Object.keys(value).length !== 0 ? (
+        <div className="relative  h-full">
+          {/* other user profile part */}
+          <div className="h-[12%] border-b-2 border-gray-200 flex space-x-4 items-center">
+            <div className="h-[50px] w-[50px] rounded-full ml-5">
               <img
-                src={userData[0].imgLink}
+                src={value.imgLink}
                 className="w-full h-full rounded-full"
                 alt=""
               />
             </div>
-            <h3 className="font-semibold text-lg">{userData[0].name}</h3>
+            <h3 className="font-bold"> {value.name}</h3>
           </div>
-          <div className="mx-3 ">
-            <button
-              onClick={() => setShowChatBody(!showChatBody)}
-              className="rounded-full hover:bg-blue-400 hover:text-white h-[30px] w-[30px] flex items-center justify-center"
+          {/* {value && <p>{value.name}</p>} */}
+
+          {/* existing messages */}
+          {/* {chatRoomIdSpecific && alert(chatRoomIdSpecific)} */}
+          <div className=" h-[80%] ">
+            {chatRoomIdSpecific && (
+              <ChatMsgBody
+                images={{
+                  receiverImg: value.imgLink,
+                  senderImg: userProfile.imgLink,
+                }}
+                chatRoomIdSpecific={chatRoomIdSpecific}
+              ></ChatMsgBody>
+            )}
+          </div>
+          {/* <div className="overflow-y-scroll h-[78%] bg-blue-500">
+            {chatMsgArray.map((item) => (
+              <ChatMessage
+                item={item}
+                key={item._id}
+                images={{
+                  receiverImg: value.imgLink,
+                  senderImg: userProfile.imgLink,
+                }}
+              ></ChatMessage>
+            ))}
+          </div> */}
+          <div className="absolute bottom-0 left-0 w-full py-2 border-t-2 border-gray-200 bg-slate-300">
+            <form
+              onSubmit={handleFirstNewMsg}
+              className="  w-full p-2 flex justify-between"
             >
-              <FaEllipsisV />
-            </button>
+              <input
+                type="text"
+                className="w-[80%] h-[20%] rounded-xl outline-none block bg-white pl-4 py-1"
+                placeholder="Aa"
+                name="msg"
+              />
+              <input
+                type="submit"
+                value="Send"
+                className="w-[15%]  block bg-blue-500 rounded-lg text-white text-md hover:text-blue-500 hover:bg-white hover:border-[2px] hover:border-blue-500 border-[0px]"
+              />
+            </form>
           </div>
+          {showChatBody && <ChatBodyInfo />}
         </div>
-        {/* Message body */}
-        <div className="overflow-y-scroll h-[80%] scoller">
-          {chatData.map((item) => (
-            <ChatMessage item={item} key={item.msgId}></ChatMessage>
-          ))}
-          <div id="scrollDown"></div>
+      ) : (
+        <div className="justify-center items-center flex h-full bg-white">
+          <h3 className="font-bold text-xl">No Chats Selected</h3>
         </div>
-        {/* msg input form */}
-        <form
-          onSubmit={handleNewMsg}
-          className=" border-t-2 border-gray-200 w-full p-2 flex justify-between"
-        >
-          <input
-            type="text"
-            className="w-[80%] rounded-xl outline-none block bg-slate-200 pl-4 py-1"
-            placeholder="Aa"
-            name="msg"
-          />
-          <input
-            type="submit"
-            value="Send"
-            className="w-[15%]  block bg-blue-500 rounded-lg text-white text-md hover:text-blue-500 hover:bg-white hover:border-[2px] hover:border-blue-500 border-[0px]"
-          />
-        </form>
-      </div>
-      {showChatBody && <ChatBodyInfo />}
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import auth from "../../firebase_init";
+import { auth } from "../../firebase_init";
 import DotLoader from "react-spinners/DotLoader";
 import { useLocation, Navigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
